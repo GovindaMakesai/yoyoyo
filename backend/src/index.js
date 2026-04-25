@@ -10,6 +10,7 @@ require("dotenv").config();
 const app = express();
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
+const publicBaseUrl = process.env.BACKEND_PUBLIC_URL;
 
 const swaggerSpec = swaggerJsdoc({
   definition: {
@@ -23,7 +24,10 @@ const swaggerSpec = swaggerJsdoc({
       { name: "System", description: "Service health and diagnostics" },
       { name: "Rooms", description: "Room management APIs" },
     ],
-    servers: [{ url: `http://localhost:${process.env.PORT || 3000}` }],
+    servers: [
+      ...(publicBaseUrl ? [{ url: publicBaseUrl }] : []),
+      { url: `http://localhost:${process.env.PORT || 3000}` },
+    ],
     components: {
       schemas: {
         Room: {
