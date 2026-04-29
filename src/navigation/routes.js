@@ -4,4 +4,5 @@ export const ROUTES = {
   Home: "Home",
   Room: "Room",
   Chat: "Chat",
+  VideoCall: "VideoCall",
 };

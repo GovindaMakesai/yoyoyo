@@ -4,13 +4,16 @@ import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { darkNavigationTheme } from "./src/navigation/theme";
+import { ToastProvider } from "./src/components";
 
 const App = () => {
   return (
-    <NavigationContainer theme={darkNavigationTheme}>
-      <StatusBar style="light" />
-      <AppNavigator />
-    </NavigationContainer>
+    <ToastProvider>
+      <NavigationContainer theme={darkNavigationTheme}>
+        <StatusBar style="light" />
+        <AppNavigator />
+      </NavigationContainer>
+    </ToastProvider>
   );
 };
 

@@ -1,31 +1,31 @@
 import { create } from "zustand";
 import socketService from "../services/socket";
 
+const appendUniqueMessage = (messages = [], message) => {
+  if (!message?.id) {
+    return [...messages, message];
+  }
+  if (messages.some((item) => item.id === message.id)) {
+    return messages;
+  }
+  return [...messages, message];
+};
+
 export const useChatStore = create((set, get) => ({
   messagesByRoom: {},
+  typingByRoom: {},
   loading: false,
   error: "",
-
   hydrateRoomMessages: (roomId) => {
     const existing = get().messagesByRoom[roomId];
-    if (existing) {
-      return;
+    if (!existing) {
+      set((state) => ({
+        messagesByRoom: {
+          ...state.messagesByRoom,
+          [roomId]: [],
+        },
+      }));
     }
-
-    set((state) => ({
-      messagesByRoom: {
-        ...state.messagesByRoom,
-        [roomId]: [
-          {
-            id: `welcome_${roomId}`,
-            roomId,
-            sender: "System",
-            text: "Welcome to the room chat.",
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      },
-    }));
   },
 
   sendMessage: async ({ roomId, sender, text }) => {
@@ -47,7 +47,7 @@ export const useChatStore = create((set, get) => ({
       set((state) => ({
         messagesByRoom: {
           ...state.messagesByRoom,
-          [roomId]: [...(state.messagesByRoom[roomId] || []), message],
+          [roomId]: appendUniqueMessage(state.messagesByRoom[roomId] || [], message),
         },
       }));
 
@@ -63,8 +63,32 @@ export const useChatStore = create((set, get) => ({
     set((state) => ({
       messagesByRoom: {
         ...state.messagesByRoom,
-        [message.roomId]: [...(state.messagesByRoom[message.roomId] || []), message],
+        [message.roomId]: appendUniqueMessage(state.messagesByRoom[message.roomId] || [], message),
       },
     }));
+  },
+
+  receiveSystemMessage: (message) => {
+    set((state) => ({
+      messagesByRoom: {
+        ...state.messagesByRoom,
+        [message.roomId]: appendUniqueMessage(state.messagesByRoom[message.roomId] || [], message),
+      },
+    }));
+  },
+
+  setTyping: ({ roomId, userName, isTyping }) => {
+    set((state) => {
+      const current = state.typingByRoom[roomId] || [];
+      const withoutUser = current.filter((item) => item !== userName);
+      const nextUsers = isTyping ? [...withoutUser, userName] : withoutUser;
+
+      return {
+        typingByRoom: {
+          ...state.typingByRoom,
+          [roomId]: nextUsers,
+        },
+      };
+    });
   },
 }));

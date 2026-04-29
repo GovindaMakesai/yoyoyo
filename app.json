@@ -1,11 +1,13 @@
 {
   "expo": {
-    "name": "VoiceSocialMVP",
-    "slug": "voice-social-mvp",
+    "name": "Voice Rooms",
+    "slug": "voice-rooms",
     "version": "1.0.0",
+    "icon": "./assets/lives.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/lives.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B0D12"
     },
@@ -15,7 +17,24 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {},
-    "web": {}
+    "android": {
+      "package": "com.govinda.voicerooms",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/lives.png",
+        "backgroundColor": "#0B0D12"
+      }
+    },
+    "web": {
+      "favicon": "./assets/lives.png"
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7fda7aa0-732d-43e6-add4-21f10a830b47"
+      }
+    },
+    "owner": "govinda15"
   }
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ROUTES } from "../../../navigation/routes";
 import { appColors } from "../../../navigation/theme";
 import { useAuthStore } from "../../../store";
@@ -51,7 +51,8 @@ const SplashScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Voice Social</Text>
+      <Image source={require("../../../../assets/lives.png")} style={styles.logo} />
+      <Text style={styles.title}>Voice Rooms</Text>
       <Text style={styles.subtitle}>Connecting voices in real-time</Text>
 
       {isLoading ? (
@@ -85,6 +86,12 @@ const styles = StyleSheet.create({
     color: appColors.textPrimary,
     fontSize: 28,
     fontWeight: "700",
+  },
+  logo: {
+    width: 96,
+    height: 96,
+    borderRadius: 20,
+    marginBottom: 16,
   },
   subtitle: {
     color: appColors.textSecondary,

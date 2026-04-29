@@ -2,21 +2,26 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { ROUTES } from "../../../navigation/routes";
 import { appColors } from "../../../navigation/theme";
+import { useToast } from "../../../components";
 import { useAuthStore } from "../../../store";
 
 const LoginScreen = ({ navigation }) => {
-  const [phone, setPhone] = useState("");
-  const { loading, error, loginWithPhoneMock, loginWithGoogleMock } = useAuthStore();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+  const { loading, error, login, register } = useAuthStore();
+  const { showToast } = useToast();
+
+  React.useEffect(() => {
+    if (error) {
+      showToast(error, "error");
+    }
+  }, [error, showToast]);
 
   const handleContinue = async () => {
-    const success = await loginWithPhoneMock(phone);
-    if (success) {
-      navigation.replace(ROUTES.Home);
-    }
-  };
-
-  const handleGooglePress = async () => {
-    const success = await loginWithGoogleMock();
+    const payload = isRegister ? { name: name.trim(), email: email.trim(), password } : { email: email.trim(), password };
+    const success = isRegister ? await register(payload) : await login(payload);
     if (success) {
       navigation.replace(ROUTES.Home);
     }
@@ -25,14 +30,32 @@ const LoginScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Welcome</Text>
-      <Text style={styles.description}>Login with phone (mock) or Google (mock).</Text>
+      <Text style={styles.description}>{isRegister ? "Create account" : "Sign in"} with your email.</Text>
 
+      {isRegister ? (
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Full name"
+          placeholderTextColor={appColors.textSecondary}
+          style={styles.input}
+        />
+      ) : null}
       <TextInput
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Enter phone number"
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
         placeholderTextColor={appColors.textSecondary}
-        keyboardType="phone-pad"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        style={styles.input}
+      />
+      <TextInput
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        placeholderTextColor={appColors.textSecondary}
+        secureTextEntry
         style={styles.input}
       />
 
@@ -41,15 +64,17 @@ const LoginScreen = ({ navigation }) => {
         style={[styles.button, loading ? styles.buttonDisabled : null]}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? "Please wait..." : "Login"}</Text>
+        <Text style={styles.buttonText}>{loading ? "Please wait..." : isRegister ? "Register" : "Login"}</Text>
       </Pressable>
 
       <Pressable
-        onPress={handleGooglePress}
+        onPress={() => setIsRegister((prev) => !prev)}
         style={[styles.googleButton, loading ? styles.buttonDisabled : null]}
         disabled={loading}
       >
-        <Text style={styles.googleButtonText}>Continue with Google</Text>
+        <Text style={styles.googleButtonText}>
+          {isRegister ? "Already have an account? Login" : "New here? Register"}
+        </Text>
       </Pressable>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}

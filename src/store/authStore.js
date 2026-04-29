@@ -1,20 +1,18 @@
 import { create } from "zustand";
 import {
   clearPersistedSession,
+  getCurrentUser,
   getPersistedSession,
+  loginWithEmail,
   persistSession,
+  registerWithEmail,
 } from "../services/auth";
 import { setAuthToken } from "../services/api";
-
-const buildMockUser = (phone) => ({
-  id: `user_${Date.now()}`,
-  name: "Voice User",
-  phone,
-  token: `mock_token_${Date.now()}`,
-});
+import socketService from "../services/socket";
 
 export const useAuthStore = create((set) => ({
   user: null,
+  token: null,
   loading: false,
   error: "",
   hydrated: false,
@@ -22,49 +20,58 @@ export const useAuthStore = create((set) => ({
   hydrateSession: async () => {
     try {
       set({ loading: true, error: "" });
-      const savedUser = await getPersistedSession();
-      setAuthToken(savedUser?.token ?? null);
-      set({ user: savedUser, hydrated: true });
-      return savedUser;
+      const session = await getPersistedSession();
+      const token = session?.token || null;
+      if (!token) {
+        set({ user: null, token: null, hydrated: true });
+        return null;
+      }
+
+      setAuthToken(token);
+      const user = await getCurrentUser();
+      socketService.connect({ token, user });
+      const nextSession = { token, user };
+      await persistSession(nextSession);
+      set({ user, token, hydrated: true });
+      return user;
     } catch (error) {
-      set({ error: "Failed to restore session.", hydrated: true });
+      setAuthToken(null);
+      await clearPersistedSession();
+      set({ user: null, token: null, error: "Failed to restore session.", hydrated: true });
       return null;
     } finally {
       set({ loading: false });
     }
   },
 
-  loginWithPhoneMock: async (phone) => {
+  register: async (payload) => {
     try {
       set({ loading: true, error: "" });
-
-      if (!phone || phone.trim().length < 8) {
-        throw new Error("Please enter a valid phone number.");
-      }
-
-      const user = buildMockUser(phone.trim());
-      await persistSession(user);
-      setAuthToken(user.token);
-      set({ user });
+      const { token, user } = await registerWithEmail(payload);
+      setAuthToken(token);
+      socketService.connect({ token, user });
+      await persistSession({ token, user });
+      set({ user, token });
       return true;
     } catch (error) {
-      set({ error: error.message || "Login failed." });
+      set({ error: error?.response?.data?.message || "Registration failed." });
       return false;
     } finally {
       set({ loading: false });
     }
   },
 
-  loginWithGoogleMock: async () => {
+  login: async (payload) => {
     try {
       set({ loading: true, error: "" });
-      const user = buildMockUser("+10000000000");
-      await persistSession(user);
-      setAuthToken(user.token);
-      set({ user });
+      const { token, user } = await loginWithEmail(payload);
+      setAuthToken(token);
+      socketService.connect({ token, user });
+      await persistSession({ token, user });
+      set({ user, token });
       return true;
     } catch (error) {
-      set({ error: "Google login failed." });
+      set({ error: error?.response?.data?.message || "Login failed." });
       return false;
     } finally {
       set({ loading: false });
@@ -76,7 +83,8 @@ export const useAuthStore = create((set) => ({
       set({ loading: true, error: "" });
       await clearPersistedSession();
       setAuthToken(null);
-      set({ user: null });
+      socketService.disconnect();
+      set({ user: null, token: null });
     } catch (error) {
       set({ error: "Logout failed." });
     } finally {

@@ -2,9 +2,10 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import SplashScreen from "../features/splash/screens/SplashScreen";
 import LoginScreen from "../features/auth/screens/LoginScreen";
-import HomeScreen from "../features/home/screens/HomeScreen";
+import MainTabNavigator from "./MainTabNavigator";
 import RoomScreen from "../features/room/screens/RoomScreen";
 import ChatScreen from "../features/chat/screens/ChatScreen";
+import VideoCallScreen from "../features/call/screens/VideoCallScreen";
 import { ROUTES } from "./routes";
 import { appColors } from "./theme";
 
@@ -33,13 +34,14 @@ const AppNavigator = () => {
       />
       <Stack.Screen
         name={ROUTES.Home}
-        component={HomeScreen}
+        component={MainTabNavigator}
         options={{
-          title: "Home",
+          headerShown: false,
         }}
       />
       <Stack.Screen name={ROUTES.Room} component={RoomScreen} options={{ title: "Room" }} />
       <Stack.Screen name={ROUTES.Chat} component={ChatScreen} options={{ title: "Chat" }} />
+      <Stack.Screen name={ROUTES.VideoCall} component={VideoCallScreen} options={{ title: "Video Call" }} />
     </Stack.Navigator>
   );
 };

@@ -20,6 +20,7 @@ const removeUserFromRoom = (roomId, socketId) => {
 const registerSocketHandlers = (io) => {
   io.on("connection", (socket) => {
     const userId = socket.handshake.auth?.userId || `guest_${socket.id}`;
+    const userName = `User ${userId.slice(-4)}`;
 
     socket.on("joinRoom", ({ roomId }) => {
       if (!roomId) {
@@ -30,10 +31,17 @@ const registerSocketHandlers = (io) => {
       const users = addUserToRoom(roomId, {
         id: userId,
         socketId: socket.id,
-        name: `User ${userId.slice(-4)}`,
+        name: userName,
       });
 
       io.to(roomId).emit("roomUsersUpdated", { roomId, users });
+      socket.to(roomId).emit("systemMessage", {
+        id: `sys_${Date.now()}`,
+        roomId,
+        sender: "System",
+        text: `${userName} joined the room`,
+        createdAt: new Date().toISOString(),
+      });
     });
 
     socket.on("leaveRoom", ({ roomId }) => {
@@ -44,6 +52,13 @@ const registerSocketHandlers = (io) => {
       socket.leave(roomId);
       const users = removeUserFromRoom(roomId, socket.id);
       io.to(roomId).emit("roomUsersUpdated", { roomId, users });
+      socket.to(roomId).emit("systemMessage", {
+        id: `sys_${Date.now()}`,
+        roomId,
+        sender: "System",
+        text: `${userName} left the room`,
+        createdAt: new Date().toISOString(),
+      });
     });
 
     socket.on("sendMessage", (message) => {
@@ -51,6 +66,17 @@ const registerSocketHandlers = (io) => {
         return;
       }
       io.to(message.roomId).emit("messageReceived", message);
+    });
+
+    socket.on("typing", ({ roomId, userName: typingUserName, isTyping }) => {
+      if (!roomId) {
+        return;
+      }
+      socket.to(roomId).emit("typingUpdated", {
+        roomId,
+        userName: typingUserName || userName,
+        isTyping: Boolean(isTyping),
+      });
     });
 
     socket.on("disconnect", () => {

@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  FlatList,
+  ScrollView,
   Pressable,
   StyleSheet,
   Text,
@@ -9,31 +9,30 @@ import {
 } from "react-native";
 import { ROUTES } from "../../../navigation/routes";
 import { appColors } from "../../../navigation/theme";
-import socketService from "../../../services/socket";
-import { useAuthStore, useRoomStore } from "../../../store";
+import { useAuthStore, useRoomStore, useWalletStore } from "../../../store";
 
 const HomeScreen = ({ navigation }) => {
   const { user, logout, loading: authLoading } = useAuthStore();
-  const { rooms, createRoom, selectRoom } = useRoomStore();
+  const { rooms, createRoom, selectRoom, loadRooms, loading: roomLoading, error } = useRoomStore();
+  const { coins, loadWallet } = useWalletStore();
 
   React.useEffect(() => {
-    if (!user) {
-      return;
+    if (user) {
+      loadRooms();
+      loadWallet();
     }
-
-    socketService.connect(user.id);
-    return () => {
-      socketService.disconnect();
-    };
-  }, [user]);
+  }, [user, loadRooms, loadWallet]);
 
   const handleOpenRoom = (room) => {
     selectRoom(room);
-    navigation.navigate(ROUTES.Room, { roomId: room.id });
+    navigation.navigate(ROUTES.Room, { roomId: room._id || room.id });
   };
 
-  const handleCreateRoom = () => {
-    createRoom();
+  const handleCreateRoom = async () => {
+    const newRoom = await createRoom(`Room by ${user?.name || "Host"}`);
+    if (newRoom) {
+      handleOpenRoom(newRoom);
+    }
   };
 
   const handleLogout = async () => {
@@ -46,17 +45,21 @@ const HomeScreen = ({ navigation }) => {
 
   const renderRoom = ({ item }) => (
     <Pressable style={styles.roomCard} onPress={() => handleOpenRoom(item)}>
-      <Text style={styles.roomTitle}>{item.title}</Text>
+      <View style={styles.roomTopRow}>
+        <Text style={styles.roomEmoji}>🎙️</Text>
+        <Text style={styles.roomTitle}>{item.title}</Text>
+      </View>
       <Text style={styles.roomMeta}>{item.participants} listening</Text>
     </Pressable>
   );
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentWrap}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>Rooms</Text>
-          <Text style={styles.subtitle}>Welcome, {user?.name || "Guest"}</Text>
+          <Text style={styles.title}>Voice Rooms</Text>
+          <Text style={styles.subtitle}>Welcome, {user?.name || "Guest"} 👋</Text>
+          <Text style={styles.subtitle}>Coins: {coins}</Text>
         </View>
         <TouchableOpacity
           style={[styles.logoutButton, authLoading ? styles.disabled : null]}
@@ -68,17 +71,18 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       <TouchableOpacity style={styles.createButton} onPress={handleCreateRoom}>
-        <Text style={styles.createButtonText}>Create Room</Text>
+        <Text style={styles.createButtonText}>{roomLoading ? "Creating..." : "Create Room"}</Text>
       </TouchableOpacity>
 
-      <FlatList
-        data={rooms}
-        keyExtractor={(item) => item.id}
-        renderItem={renderRoom}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text style={styles.emptyText}>No rooms yet.</Text>}
-      />
-    </View>
+      <Text style={styles.sectionTitle}>Live Rooms</Text>
+      <View style={styles.listContent}>
+        {error ? <Text style={styles.emptyText}>{error}</Text> : null}
+        {rooms.length === 0 ? <Text style={styles.emptyText}>No rooms yet.</Text> : null}
+        {rooms.map((room) => (
+          <View key={room._id || room.id}>{renderRoom({ item: room })}</View>
+        ))}
+      </View>
+    </ScrollView>
   );
 };
 
@@ -86,7 +90,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: appColors.background,
+  },
+  contentWrap: {
     padding: 24,
+    paddingBottom: 28,
   },
   headerRow: {
     flexDirection: "row",
@@ -128,7 +135,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   listContent: {
-    paddingTop: 16,
+    paddingTop: 12,
   },
   roomCard: {
     borderWidth: 1,
@@ -136,6 +143,15 @@ const styles = StyleSheet.create({
     backgroundColor: appColors.card,
     borderRadius: 12,
     padding: 14,
+    marginBottom: 10,
+  },
+  roomTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  roomEmoji: {
+    marginRight: 8,
+    fontSize: 15,
   },
   roomTitle: {
     color: appColors.textPrimary,
@@ -151,6 +167,13 @@ const styles = StyleSheet.create({
     color: appColors.textSecondary,
     textAlign: "center",
     marginTop: 20,
+  },
+  sectionTitle: {
+    color: appColors.textPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 18,
+    marginBottom: 10,
   },
   disabled: {
     opacity: 0.7,

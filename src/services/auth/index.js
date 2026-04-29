@@ -1,8 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 import { STORAGE_KEYS } from "../../utils/constants";
+import api from "../api";
 
-export const persistSession = async (user) => {
-  await SecureStore.setItemAsync(STORAGE_KEYS.SESSION, JSON.stringify(user));
+export const persistSession = async (session) => {
+  await SecureStore.setItemAsync(STORAGE_KEYS.SESSION, JSON.stringify(session));
 };
 
 export const getPersistedSession = async () => {
@@ -17,4 +18,19 @@ export const getPersistedSession = async () => {
 
 export const clearPersistedSession = async () => {
   await SecureStore.deleteItemAsync(STORAGE_KEYS.SESSION);
+};
+
+export const registerWithEmail = async ({ name, email, password }) => {
+  const response = await api.post("/auth/register", { name, email, password });
+  return response.data;
+};
+
+export const loginWithEmail = async ({ email, password }) => {
+  const response = await api.post("/auth/login", { email, password });
+  return response.data;
+};
+
+export const getCurrentUser = async () => {
+  const response = await api.get("/auth/me");
+  return response.data?.user;
 };

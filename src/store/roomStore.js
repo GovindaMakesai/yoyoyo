@@ -1,29 +1,37 @@
 import { create } from "zustand";
-
-const initialRooms = [
-  { id: "room_1", title: "Late Night Tech Talk", participants: 12 },
-  { id: "room_2", title: "Startup Founders Lounge", participants: 7 },
-  { id: "room_3", title: "Music and Chill", participants: 19 },
-];
+import { createRoomApi, fetchRooms } from "../services/rooms";
 
 export const useRoomStore = create((set) => ({
-  rooms: initialRooms,
+  rooms: [],
   activeRoom: null,
+  roomUsersById: {},
   loading: false,
   error: "",
 
-  createRoom: () => {
-    set((state) => {
-      const nextRoom = {
-        id: `room_${Date.now()}`,
-        title: `New Room ${state.rooms.length + 1}`,
-        participants: 1,
-      };
+  loadRooms: async () => {
+    try {
+      set({ loading: true, error: "" });
+      const rooms = await fetchRooms();
+      set({ rooms });
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Failed to load rooms." });
+    } finally {
+      set({ loading: false });
+    }
+  },
 
-      return {
-        rooms: [nextRoom, ...state.rooms],
-      };
-    });
+  createRoom: async (title) => {
+    try {
+      set({ loading: true, error: "" });
+      const room = await createRoomApi({ title });
+      set((state) => ({ rooms: [room, ...state.rooms] }));
+      return room;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Failed to create room." });
+      return null;
+    } finally {
+      set({ loading: false });
+    }
   },
 
   selectRoom: (room) => {
@@ -32,5 +40,19 @@ export const useRoomStore = create((set) => ({
 
   clearActiveRoom: () => {
     set({ activeRoom: null });
+  },
+
+  updateRoomUsers: (roomId, users) => {
+    set((state) => ({
+      roomUsersById: {
+        ...state.roomUsersById,
+        [roomId]: users || [],
+      },
+      rooms: state.rooms.map((room) =>
+        String(room._id || room.id) === String(roomId)
+          ? { ...room, participants: (users || []).length }
+          : room
+      ),
+    }));
   },
 }));
