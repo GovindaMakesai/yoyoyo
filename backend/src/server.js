@@ -1,4 +1,5 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const cors = require("cors");
 const express = require("express");
 const http = require("http");
@@ -49,6 +50,9 @@ app.use(errorHandler);
 registerSocketHandlers(io);
 
 const startServer = async () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is missing. Add it to backend/.env");
+  }
   await connectDatabase();
   server.listen(PORT, () => {
     // eslint-disable-next-line no-console
