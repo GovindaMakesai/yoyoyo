@@ -16,7 +16,9 @@ const AppButton = ({ label, onPress, disabled, variant = "primary", leftSlot, st
       disabled={disabled}
     >
       {leftSlot ? <View style={styles.leftSlot}>{leftSlot}</View> : null}
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, variant === "secondary" ? styles.labelSecondary : styles.labelOnBrand]}>
+        {label}
+      </Text>
     </Pressable>
   );
 };
@@ -42,9 +44,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   label: {
-    color: colors.textPrimary,
     fontWeight: "700",
     fontSize: 14,
+  },
+  labelOnBrand: {
+    color: "#FFFFFF",
+  },
+  labelSecondary: {
+    color: colors.textPrimary,
   },
   leftSlot: {
     marginRight: 8,

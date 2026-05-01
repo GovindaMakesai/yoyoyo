@@ -21,6 +21,9 @@ const VideoCallScreen = ({ navigation, route }) => {
     let mounted = true;
 
     const setup = async () => {
+      if (!webrtcService.isSupported()) {
+        throw new Error(webrtcService.getUnavailableMessage());
+      }
       await webrtcService.initLocalStream({ audio: true, video: true });
       if (isCaller) {
         const offer = await webrtcService.createOffer(peerUserId, (candidate) => {
@@ -61,8 +64,8 @@ const VideoCallScreen = ({ navigation, route }) => {
 
     socketService.on("webrtc:signal", onSignal);
     socketService.on("call:ended", onCallEnded);
-    setup().catch(() => {
-      setStatus("Failed to connect");
+    setup().catch((error) => {
+      setStatus(error?.message || "Failed to connect");
     });
 
     return () => {
@@ -81,39 +84,51 @@ const VideoCallScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.preview}>
-        <Text style={styles.previewText}>Video stream active</Text>
-      </View>
+      {!webrtcService.isSupported() ? (
+        <View style={styles.preview}>
+          <Text style={styles.previewText}>Voice/Video calls are unavailable in Expo Go.</Text>
+          <Text style={styles.previewSubText}>Use development build: expo run:android / expo run:ios</Text>
+          <Pressable style={styles.endButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.controlText}>Back</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.preview}>
+          <Text style={styles.previewText}>Video stream active</Text>
+        </View>
+      )}
       <Text style={styles.name}>{peerUserName}</Text>
       <Text style={styles.status}>{status}</Text>
 
-      <View style={styles.footer}>
-        <Pressable
-          style={[styles.controlButton, !micOn && styles.controlOff]}
-          onPress={() =>
-            setMicOn((prev) => {
-              webrtcService.toggleAudio(!prev);
-              return !prev;
-            })
-          }
-        >
-          <Text style={styles.controlText}>{micOn ? "Mute" : "Unmute"}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.controlButton, !cameraOn && styles.controlOff]}
-          onPress={() =>
-            setCameraOn((prev) => {
-              webrtcService.toggleVideo(!prev);
-              return !prev;
-            })
-          }
-        >
-          <Text style={styles.controlText}>{cameraOn ? "Camera Off" : "Camera On"}</Text>
-        </Pressable>
-        <Pressable style={styles.endButton} onPress={endCall}>
-          <Text style={styles.controlText}>End</Text>
-        </Pressable>
-      </View>
+      {webrtcService.isSupported() ? (
+        <View style={styles.footer}>
+          <Pressable
+            style={[styles.controlButton, !micOn && styles.controlOff]}
+            onPress={() =>
+              setMicOn((prev) => {
+                webrtcService.toggleAudio(!prev);
+                return !prev;
+              })
+            }
+          >
+            <Text style={styles.controlText}>{micOn ? "Mute" : "Unmute"}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.controlButton, !cameraOn && styles.controlOff]}
+            onPress={() =>
+              setCameraOn((prev) => {
+                webrtcService.toggleVideo(!prev);
+                return !prev;
+              })
+            }
+          >
+            <Text style={styles.controlText}>{cameraOn ? "Camera Off" : "Camera On"}</Text>
+          </Pressable>
+          <Pressable style={styles.endButton} onPress={endCall}>
+            <Text style={styles.controlText}>End</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -130,6 +145,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   previewText: { color: appColors.textSecondary },
+  previewSubText: { color: appColors.textSecondary, fontSize: 12, marginTop: 8, marginBottom: 12, textAlign: "center" },
   name: { color: appColors.textPrimary, fontSize: 22, fontWeight: "700", marginTop: 16, textAlign: "center" },
   status: { color: appColors.textSecondary, fontSize: 14, textAlign: "center", marginTop: 8 },
   footer: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },

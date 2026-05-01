@@ -93,11 +93,13 @@ const ChatScreen = ({ route }) => {
         contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 10) + 48 }]}
         renderItem={({ item, index }) => {
           const prevItem = messages[index - 1];
-          const isGrouped = prevItem?.sender === item.sender;
+          const senderName = item.sender || item.senderName || "User";
+          const isGrouped = (prevItem?.sender || prevItem?.senderName) === senderName;
           return (
             <View style={[styles.messageItem, isGrouped ? styles.messageItemGrouped : null]}>
-              {!isGrouped ? <Text style={styles.sender}>{item.sender}</Text> : null}
-              <Text style={styles.messageText}>{item.text}</Text>
+              {!isGrouped ? <Text style={styles.sender}>{senderName}</Text> : null}
+              {item.imageUrl ? <Text style={styles.messageText}>📷 {item.imageUrl}</Text> : null}
+              {item.text ? <Text style={styles.messageText}>{item.text}</Text> : null}
               <Text style={styles.timestamp}>
                 {new Date(item.createdAt || Date.now()).toLocaleTimeString([], {
                   hour: "2-digit",

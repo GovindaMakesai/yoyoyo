@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   buttonText: {
-    color: appColors.textPrimary,
+    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
   },

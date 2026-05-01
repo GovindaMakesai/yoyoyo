@@ -5,8 +5,8 @@ export const fetchRooms = async () => {
   return response.data?.rooms || [];
 };
 
-export const createRoomApi = async ({ title }) => {
-  const response = await api.post("/rooms", { title });
+export const createRoomApi = async ({ title, maxMembers, lockPassword }) => {
+  const response = await api.post("/rooms", { title, maxMembers, lockPassword });
   return response.data?.room;
 };
 

@@ -10,12 +10,13 @@ const RoomScreen = ({ navigation, route }) => {
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [incomingCall, setIncomingCall] = useState(null);
+  const [rtcError, setRtcError] = useState("");
   const { user } = useAuthStore();
-  const { rooms, activeRoom, clearActiveRoom, roomUsersById, updateRoomUsers } = useRoomStore();
+  const { rooms, activeRoom, clearActiveRoom, roomUsersById, updateRoomUsers, joinRoom, leaveRoom } = useRoomStore();
   const roomId = route.params?.roomId;
 
   const room = useMemo(
-    () => activeRoom || rooms.find((item) => item.id === roomId) || null,
+    () => activeRoom || rooms.find((item) => String(item._id || item.id) === String(roomId)) || null,
     [activeRoom, roomId, rooms]
   );
 
@@ -26,9 +27,13 @@ const RoomScreen = ({ navigation, route }) => {
       return;
     }
 
-    webrtcService
-      .initLocalStream({ audio: true, video: true })
-      .catch(() => null);
+    joinRoom({ roomId }).catch(() => null);
+
+    if (webrtcService.isSupported()) {
+      webrtcService.initLocalStream({ audio: true, video: true }).catch(() => {
+        setRtcError("Call setup failed. Check device permissions.");
+      });
+    }
 
     const onUsersUpdate = (payload) => {
       if (payload.roomId === roomId) {
@@ -61,6 +66,10 @@ const RoomScreen = ({ navigation, route }) => {
       setIncomingCall(payload);
     };
     const onCallAccepted = ({ fromUserId, fromUserName }) => {
+      if (!webrtcService.isSupported()) {
+        setRtcError(webrtcService.getUnavailableMessage());
+        return;
+      }
       navigation.navigate(ROUTES.VideoCall, {
         peerUserId: fromUserId,
         peerUserName: fromUserName,
@@ -84,22 +93,29 @@ const RoomScreen = ({ navigation, route }) => {
       socketService.off("call:accepted", onCallAccepted);
       socketService.off("call:rejected", onCallRejected);
       socketService.leaveRoom(roomId);
+      leaveRoom({ roomId }).catch(() => null);
       webrtcService.cleanup();
     };
-  }, [navigation, roomId, updateRoomUsers]);
+  }, [joinRoom, leaveRoom, navigation, roomId, updateRoomUsers]);
 
   React.useEffect(() => {
     if (!roomId || !user?.id) {
       return;
     }
 
+    if (!webrtcService.isSupported()) return;
+
     users
       .filter((member) => member.id !== user.id)
       .forEach(async (member) => {
-        const offer = await webrtcService.createOffer(member.id, (candidate) => {
-          socketService.sendSignal({ roomId, targetUserId: member.id, signal: candidate });
-        });
-        socketService.sendSignal({ roomId, targetUserId: member.id, signal: offer });
+        try {
+          const offer = await webrtcService.createOffer(member.id, (candidate) => {
+            socketService.sendSignal({ roomId, targetUserId: member.id, signal: candidate });
+          });
+          socketService.sendSignal({ roomId, targetUserId: member.id, signal: offer });
+        } catch (_error) {
+          setRtcError("Unable to start call in Expo Go. Use development build for WebRTC.");
+        }
       });
   }, [roomId, user?.id, users]);
 
@@ -119,11 +135,20 @@ const RoomScreen = ({ navigation, route }) => {
   };
 
   const handleStartCall = (member) => {
+    if (!webrtcService.isSupported()) {
+      setRtcError(webrtcService.getUnavailableMessage());
+      return;
+    }
     socketService.inviteCall({ targetUserId: member.id, roomId });
   };
 
   const handleAcceptIncoming = () => {
     if (!incomingCall?.fromUserId) {
+      return;
+    }
+    if (!webrtcService.isSupported()) {
+      setRtcError(webrtcService.getUnavailableMessage());
+      setIncomingCall(null);
       return;
     }
 
@@ -147,6 +172,7 @@ const RoomScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <Text style={styles.roomTitle}>{room?.title || "Room"}</Text>
       <Text style={styles.sectionLabel}>Listeners & Speakers</Text>
+      {rtcError ? <Text style={styles.rtcError}>{rtcError}</Text> : null}
 
       <FlatList
         data={users}
@@ -155,7 +181,11 @@ const RoomScreen = ({ navigation, route }) => {
           <View style={styles.userItem}>
             <Text style={styles.userName}>{item.name}</Text>
             {item.id !== user?.id ? (
-              <Pressable style={styles.callButton} onPress={() => handleStartCall(item)}>
+              <Pressable
+                style={[styles.callButton, !webrtcService.isSupported() ? styles.disabledButton : null]}
+                onPress={() => handleStartCall(item)}
+                disabled={!webrtcService.isSupported()}
+              >
                 <Text style={styles.buttonText}>Call</Text>
               </Pressable>
             ) : null}
@@ -299,6 +329,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 10,
     justifyContent: "space-between",
+  },
+  rtcError: {
+    color: appColors.warning,
+    marginBottom: 8,
+    fontSize: 12,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
 

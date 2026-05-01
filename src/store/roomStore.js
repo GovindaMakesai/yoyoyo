@@ -20,10 +20,10 @@ export const useRoomStore = create((set) => ({
     }
   },
 
-  createRoom: async (title) => {
+  createRoom: async ({ title, maxMembers, lockPassword } = {}) => {
     try {
       set({ loading: true, error: "" });
-      const room = await createRoomApi({ title });
+      const room = await createRoomApi({ title, maxMembers, lockPassword });
       set((state) => ({ rooms: [room, ...state.rooms] }));
       return room;
     } catch (error) {

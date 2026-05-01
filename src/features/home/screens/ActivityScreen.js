@@ -1,12 +1,17 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { appColors } from "../../../navigation/theme";
 import { useWalletStore } from "../../../store";
 
 const ActivityScreen = () => {
-  const { transactions } = useWalletStore();
+  const { transactions, loadWallet, error } = useWalletStore();
+
+  React.useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentWrap}>
       <Text style={styles.title}>Activity</Text>
       {transactions.map((tx) => (
         <View key={tx._id} style={styles.item}>
@@ -15,7 +20,9 @@ const ActivityScreen = () => {
           </Text>
         </View>
       ))}
-    </View>
+      {transactions.length === 0 ? <Text style={styles.itemText}>No coin activity yet.</Text> : null}
+      {error ? <Text style={[styles.itemText, { color: appColors.danger }]}>{error}</Text> : null}
+    </ScrollView>
   );
 };
 
@@ -23,7 +30,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: appColors.background,
+  },
+  contentWrap: {
     padding: 20,
+    paddingBottom: 28,
   },
   title: {
     color: appColors.textPrimary,

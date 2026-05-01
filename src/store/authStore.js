@@ -9,6 +9,7 @@ import {
   registerWithEmail,
   verifyOtpApi,
 } from "../services/auth";
+import { updateProfileApi } from "../services/profile";
 import { setAuthToken } from "../services/api";
 import socketService from "../services/socket";
 
@@ -118,6 +119,22 @@ export const useAuthStore = create((set) => ({
       set({ user: null, token: null });
     } catch (error) {
       set({ error: "Logout failed." });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updateProfile: async ({ name, avatarUrl }) => {
+    try {
+      set({ loading: true, error: "" });
+      const nextUser = await updateProfileApi({ name, avatarUrl });
+      const currentToken = useAuthStore.getState().token;
+      await persistSession({ token: currentToken, user: nextUser });
+      set({ user: nextUser });
+      return true;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Profile update failed." });
+      return false;
     } finally {
       set({ loading: false });
     }

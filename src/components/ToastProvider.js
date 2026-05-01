@@ -36,10 +36,11 @@ export const ToastProvider = ({ children }) => {
         <Animated.View
           style={[
             styles.toast,
-            toast.type === "error" ? styles.error : styles.info,
+            toast.type === "error" ? styles.error : toast.type === "success" ? styles.success : styles.info,
             { opacity, transform: [{ translateY }] },
           ]}
         >
+          <Text style={styles.icon}>{toast.type === "error" ? "⚠️" : toast.type === "success" ? "✅" : "ℹ️"}</Text>
           <Text style={styles.text}>{toast.message}</Text>
         </Animated.View>
       ) : null}
@@ -50,24 +51,41 @@ export const ToastProvider = ({ children }) => {
 const styles = StyleSheet.create({
   toast: {
     position: "absolute",
-    bottom: 30,
+    bottom: 40,
     alignSelf: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    maxWidth: "92%",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: radius.lg,
     borderWidth: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
   },
   info: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
+    backgroundColor: "#F0FDFA",
+    borderColor: "#99F6E4",
+  },
+  success: {
+    backgroundColor: "#ECFDF3",
+    borderColor: "#86EFAC",
   },
   error: {
-    backgroundColor: "#3a1f28",
-    borderColor: colors.danger,
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FCA5A5",
+  },
+  icon: {
+    fontSize: 13,
+    marginRight: 8,
   },
   text: {
     color: colors.textPrimary,
     fontWeight: "600",
     fontSize: 13,
+    flexShrink: 1,
   },
 });

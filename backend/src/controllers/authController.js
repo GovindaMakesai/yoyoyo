@@ -14,9 +14,10 @@ const register = asyncHandler(async (req, res) => {
 
   const cleanEmail = email ? String(email).toLowerCase().trim() : null;
   const cleanPhone = phone ? String(phone).trim() : null;
-  const existing = await User.findOne({
-    $or: [{ email: cleanEmail || undefined }, { phone: cleanPhone || undefined }],
-  });
+  const identityFilters = [];
+  if (cleanEmail) identityFilters.push({ email: cleanEmail });
+  if (cleanPhone) identityFilters.push({ phone: cleanPhone });
+  const existing = identityFilters.length > 0 ? await User.findOne({ $or: identityFilters }) : null;
   if (existing) {
     return res.status(409).json({ message: "Email or phone already registered." });
   }
@@ -41,9 +42,14 @@ const login = asyncHandler(async (req, res) => {
 
   const cleanEmail = email ? String(email).toLowerCase().trim() : null;
   const cleanPhone = phone ? String(phone).trim() : null;
-  const user = await User.findOne({
-    $or: [{ email: cleanEmail || undefined }, { phone: cleanPhone || undefined }],
-  });
+  const identityFilters = [];
+  if (cleanEmail) identityFilters.push({ email: cleanEmail });
+  if (cleanPhone) identityFilters.push({ phone: cleanPhone });
+  if (identityFilters.length === 0) {
+    return res.status(400).json({ message: "Email or phone is required." });
+  }
+
+  const user = await User.findOne({ $or: identityFilters });
   if (!user) {
     return res.status(401).json({ message: "Invalid credentials." });
   }

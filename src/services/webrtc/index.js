@@ -49,6 +49,15 @@ class WebRTCService {
     return this.localStream;
   }
 
+  isSupported() {
+    const module = getWebRTCModule();
+    return Boolean(module?.mediaDevices && module?.RTCPeerConnection);
+  }
+
+  getUnavailableMessage() {
+    return WEBRTC_UNAVAILABLE_MESSAGE;
+  }
+
   toggleAudio(enabled) {
     this.localStream?.getAudioTracks().forEach((track) => {
       track.enabled = enabled;

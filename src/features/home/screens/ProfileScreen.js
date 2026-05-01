@@ -3,6 +3,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -10,12 +11,15 @@ import {
   View,
 } from "react-native";
 import { appColors } from "../../../navigation/theme";
+import { useToast } from "../../../components";
 import { useAuthStore, useRoomStore, useWalletStore } from "../../../store";
 
 const ProfileScreen = () => {
-  const { user } = useAuthStore();
+  const { user, updateProfile, loading: authLoading, error: authError } = useAuthStore();
   const { rooms } = useRoomStore();
-  const { coins, addCoins, spendCoins, loading: walletLoading } = useWalletStore();
+  const { coins, addCoins, spendCoins, claimDailyReward, loadWallet, loading: walletLoading, error: walletError } =
+    useWalletStore();
+  const { showToast } = useToast();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [discoverable, setDiscoverable] = React.useState(true);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
@@ -26,6 +30,65 @@ const ProfileScreen = () => {
 
   const interests = ["Startups", "Music", "AI", "Design", "Tech Talks"];
   const recentRooms = rooms.slice(0, 3);
+
+  React.useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
+
+  React.useEffect(() => {
+    setDisplayName(user?.name || "Voice User");
+  }, [user?.name]);
+
+  React.useEffect(() => {
+    if (authError) {
+      showToast(authError, "error");
+    }
+  }, [authError, showToast]);
+
+  React.useEffect(() => {
+    if (walletError) {
+      showToast(walletError, "error");
+    }
+  }, [showToast, walletError]);
+
+  const handleSaveProfile = async () => {
+    const success = await updateProfile({ name: displayName.trim() });
+    if (success) {
+      setIsEditOpen(false);
+      showToast("Profile updated");
+    }
+  };
+
+  const handleShareProfile = async () => {
+    try {
+      await Share.share({
+        message: `Join me on YoYo Voice Rooms!\nUser: ${displayName || user?.name || "Voice User"}`,
+      });
+    } catch (_error) {
+      showToast("Unable to open share dialog.", "error");
+    }
+  };
+
+  const handleAddCoins = async () => {
+    const success = await addCoins(50, "Profile top-up");
+    if (success) showToast("Added 50 coins");
+  };
+
+  const handleSpendCoins = async () => {
+    const success = await spendCoins(20, "Feature unlock");
+    if (success) showToast("Spent 20 coins");
+  };
+
+  const handleClaimReward = async () => {
+    const result = await claimDailyReward();
+    if (result?.rewardAmount) {
+      showToast(`Daily reward +${result.rewardAmount} coins`);
+      return;
+    }
+    if (result) {
+      showToast("Daily reward claimed");
+    }
+  };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentWrap}>
@@ -40,7 +103,7 @@ const ProfileScreen = () => {
           <Pressable style={styles.primaryAction} onPress={() => setIsEditOpen(true)}>
             <Text style={styles.primaryActionText}>Edit Profile</Text>
           </Pressable>
-          <Pressable style={styles.secondaryAction}>
+          <Pressable style={styles.secondaryAction} onPress={handleShareProfile}>
             <Text style={styles.secondaryActionText}>Share</Text>
           </Pressable>
         </View>
@@ -61,10 +124,10 @@ const ProfileScreen = () => {
         </View>
       </View>
       <View style={styles.actionRow}>
-        <Pressable style={styles.primaryAction} onPress={() => addCoins(50, "Profile top-up")} disabled={walletLoading}>
+        <Pressable style={styles.primaryAction} onPress={handleAddCoins} disabled={walletLoading}>
           <Text style={styles.primaryActionText}>Add 50</Text>
         </Pressable>
-        <Pressable style={styles.secondaryAction} onPress={() => spendCoins(20, "Feature unlock")} disabled={walletLoading}>
+        <Pressable style={styles.secondaryAction} onPress={handleSpendCoins} disabled={walletLoading}>
           <Text style={styles.secondaryActionText}>Spend 20</Text>
         </Pressable>
       </View>
@@ -86,7 +149,7 @@ const ProfileScreen = () => {
           <Text style={styles.emptyText}>You have not joined any rooms yet.</Text>
         ) : (
           recentRooms.map((room) => (
-            <View key={room.id} style={styles.roomItem}>
+            <View key={room._id || room.id} style={styles.roomItem}>
               <View>
                 <Text style={styles.roomTitle}>{room.title}</Text>
                 <Text style={styles.roomMeta}>{room.participants} listening</Text>
@@ -106,7 +169,10 @@ const ProfileScreen = () => {
           </View>
           <Switch
             value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            onValueChange={(value) => {
+              setNotificationsEnabled(value);
+              showToast(value ? "Notifications on" : "Notifications off");
+            }}
             thumbColor={notificationsEnabled ? appColors.primary : "#A7AFC2"}
             trackColor={{ false: appColors.border, true: appColors.primaryMuted || appColors.primary }}
           />
@@ -118,11 +184,23 @@ const ProfileScreen = () => {
           </View>
           <Switch
             value={discoverable}
-            onValueChange={setDiscoverable}
+            onValueChange={(value) => {
+              setDiscoverable(value);
+              showToast(value ? "Profile is discoverable" : "Profile hidden from discovery");
+            }}
             thumbColor={discoverable ? appColors.primary : "#A7AFC2"}
             trackColor={{ false: appColors.border, true: appColors.primaryMuted || appColors.primary }}
           />
         </View>
+      </View>
+
+      <View style={styles.actionRow}>
+        <Pressable style={styles.primaryAction} onPress={handleSaveProfile} disabled={authLoading}>
+          <Text style={styles.primaryActionText}>{authLoading ? "Saving..." : "Save Profile"}</Text>
+        </Pressable>
+        <Pressable style={styles.secondaryAction} onPress={handleClaimReward} disabled={walletLoading}>
+          <Text style={styles.secondaryActionText}>{walletLoading ? "Please wait..." : "Daily Reward"}</Text>
+        </Pressable>
       </View>
 
       <Modal visible={isEditOpen} transparent animationType="fade" onRequestClose={() => setIsEditOpen(false)}>
@@ -148,8 +226,8 @@ const ProfileScreen = () => {
               <Pressable style={styles.modalSecondary} onPress={() => setIsEditOpen(false)}>
                 <Text style={styles.modalSecondaryText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.modalPrimary} onPress={() => setIsEditOpen(false)}>
-                <Text style={styles.modalPrimaryText}>Save</Text>
+              <Pressable style={styles.modalPrimary} onPress={handleSaveProfile} disabled={authLoading}>
+                <Text style={styles.modalPrimaryText}>{authLoading ? "Saving..." : "Save"}</Text>
               </Pressable>
             </View>
           </View>
@@ -211,7 +289,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   primaryActionText: {
-    color: appColors.textPrimary,
+    color: "#FFFFFF",
     fontWeight: "700",
     fontSize: 13,
   },
@@ -396,7 +474,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   modalPrimaryText: {
-    color: appColors.textPrimary,
+    color: "#FFFFFF",
     fontWeight: "700",
   },
 });
