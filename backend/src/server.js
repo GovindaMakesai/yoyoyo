@@ -3,8 +3,10 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const cors = require("cors");
 const express = require("express");
 const http = require("http");
+const swaggerUi = require("swagger-ui-express");
 const { Server } = require("socket.io");
 const { connectDatabase } = require("./config/db");
+const { swaggerSpec } = require("./config/swagger");
 const { errorHandler } = require("./middleware/errorHandler");
 const healthRouter = require("./routes/health");
 const authRouter = require("./routes/auth");
@@ -20,6 +22,51 @@ const { registerSocketHandlers } = require("./sockets");
 
 const app = express();
 const server = http.createServer(app);
+const API_ROUTE_INDEX = {
+  health: ["GET /health"],
+  auth: [
+    "POST /auth/register",
+    "POST /auth/login",
+    "POST /auth/otp/request",
+    "POST /auth/otp/verify",
+    "GET /auth/me",
+  ],
+  profile: ["PATCH /profile"],
+  rooms: [
+    "GET /rooms",
+    "POST /rooms",
+    "POST /rooms/:roomId/join",
+    "POST /rooms/:roomId/leave",
+    "POST /rooms/:roomId/admins/:userId",
+    "DELETE /rooms/:roomId/members/:userId",
+    "PATCH /rooms/:roomId/settings",
+    "GET /rooms/:roomId/messages",
+  ],
+  wallet: [
+    "GET /wallet/balance",
+    "POST /wallet/daily-reward/claim",
+    "POST /wallet/add",
+    "POST /wallet/spend",
+    "GET /wallet/transactions",
+  ],
+  payments: [
+    "GET /payments/coin-packs",
+    "POST /payments/coin-order",
+    "POST /payments/coin-verify",
+  ],
+  vip: ["GET /vip/plans", "POST /vip/order", "POST /vip/verify"],
+  games: [
+    "POST /games/:roomId/lucky-rounds",
+    "POST /games/:roomId/lucky-rounds/:roundId/bets",
+    "POST /games/:roomId/lucky-rounds/:roundId/settle",
+  ],
+  admin: [
+    "GET /admin/rooms",
+    "POST /admin/users/:userId/ban",
+    "POST /admin/users/:userId/unban",
+    "POST /admin/users/:userId/coins",
+  ],
+};
 
 const io = new Server(server, {
   cors: {
@@ -31,6 +78,7 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 app.use(apiLimiter);
+app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
 app.use("/rooms", roomRouter);
@@ -42,7 +90,51 @@ app.use("/admin", adminRouter);
 app.use("/payments", paymentsRouter);
 
 app.get("/", (_req, res) => {
-  res.json({ message: "Voice social backend running" });
+  res.json({
+    message: "Voice social backend running",
+    docs: "/api",
+    socketDocs: "/api/socket-events",
+    swagger: "/swagger",
+  });
+});
+
+app.get("/api", (_req, res) => {
+  res.json({
+    message: "Backend API route index",
+    baseUrlExample: "http://localhost:4000",
+    routes: API_ROUTE_INDEX,
+  });
+});
+
+app.get("/api/socket-events", (_req, res) => {
+  res.json({
+    clientToServer: [
+      "joinRoom",
+      "leaveRoom",
+      "sendMessage",
+      "room:broadcast",
+      "room:toggleLock",
+      "room:updateSettings",
+      "typing",
+      "webrtc:signal",
+      "call:invite",
+      "call:accept",
+      "call:reject",
+      "call:end",
+    ],
+    serverToClient: [
+      "roomUsersUpdated",
+      "messageReceived",
+      "typingUpdated",
+      "room:stateUpdated",
+      "room:error",
+      "webrtc:signal",
+      "call:incoming",
+      "call:accepted",
+      "call:rejected",
+      "call:ended",
+    ],
+  });
 });
 
 const PORT = process.env.PORT || 4000;
