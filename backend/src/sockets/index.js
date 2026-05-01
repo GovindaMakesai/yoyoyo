@@ -100,12 +100,14 @@ const registerSocketHandlers = (io) => {
         text: String(message.text || "").trim(),
         imageUrl: String(message.imageUrl || "").trim(),
         type: message.type || "text",
+        clientMessageId: String(message.clientMessageId || message.id || ""),
       };
       if (!payload.text && !payload.imageUrl) return;
 
       RoomMessage.create(payload).then((saved) => {
         io.to(message.roomId).emit("messageReceived", {
           id: saved._id,
+          clientMessageId: payload.clientMessageId || undefined,
           roomId: saved.roomId,
           senderId: saved.senderId,
           senderName: saved.senderName,

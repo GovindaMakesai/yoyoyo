@@ -2,10 +2,15 @@ import { create } from "zustand";
 import socketService from "../services/socket";
 
 const appendUniqueMessage = (messages = [], message) => {
-  if (!message?.id) {
+  if (!message?.id && !message?.clientMessageId) {
     return [...messages, message];
   }
-  if (messages.some((item) => item.id === message.id)) {
+  const hasDuplicate = messages.some(
+    (item) =>
+      (message.id && item.id === message.id) ||
+      (message.clientMessageId && item.clientMessageId === message.clientMessageId)
+  );
+  if (hasDuplicate) {
     return messages;
   }
   return [...messages, message];
@@ -37,7 +42,7 @@ export const useChatStore = create((set, get) => ({
     }));
   },
 
-  sendMessage: async ({ roomId, sender, text }) => {
+  sendMessage: async ({ roomId, senderId, senderName, text, type = "text" }) => {
     try {
       if (!text.trim()) {
         return;
@@ -47,8 +52,12 @@ export const useChatStore = create((set, get) => ({
 
       const message = {
         id: `msg_${Date.now()}`,
+        clientMessageId: `msg_${Date.now()}`,
         roomId,
-        sender,
+        sender: senderName,
+        senderId,
+        senderName,
+        type,
         text: text.trim(),
         createdAt: new Date().toISOString(),
       };
@@ -69,12 +78,32 @@ export const useChatStore = create((set, get) => ({
   },
 
   receiveMessage: (message) => {
-    set((state) => ({
-      messagesByRoom: {
-        ...state.messagesByRoom,
-        [message.roomId]: appendUniqueMessage(state.messagesByRoom[message.roomId] || [], message),
-      },
-    }));
+    set((state) => {
+      const existing = state.messagesByRoom[message.roomId] || [];
+      const matchIndex = existing.findIndex(
+        (item) =>
+          (message.id && item.id === message.id) ||
+          (message.clientMessageId && item.clientMessageId === message.clientMessageId)
+      );
+
+      if (matchIndex >= 0) {
+        const next = [...existing];
+        next[matchIndex] = { ...next[matchIndex], ...message, id: message.id || next[matchIndex].id };
+        return {
+          messagesByRoom: {
+            ...state.messagesByRoom,
+            [message.roomId]: next,
+          },
+        };
+      }
+
+      return {
+        messagesByRoom: {
+          ...state.messagesByRoom,
+          [message.roomId]: appendUniqueMessage(existing, message),
+        },
+      };
+    });
   },
 
   receiveSystemMessage: (message) => {

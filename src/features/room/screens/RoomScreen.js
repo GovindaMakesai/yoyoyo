@@ -221,9 +221,13 @@ const RoomScreen = ({ navigation, route }) => {
 
       <View style={styles.footer}>
         <Pressable
-          style={[styles.micButton, !micOn ? styles.micOff : null]}
+          style={[styles.micButton, !micOn ? styles.micOff : null, !webrtcService.isSupported() ? styles.disabledButton : null]}
           onPress={() =>
             setMicOn((prev) => {
+              if (!webrtcService.isSupported()) {
+                setRtcError(webrtcService.getUnavailableMessage());
+                return prev;
+              }
               webrtcService.toggleAudio(!prev);
               return !prev;
             })
@@ -232,9 +236,13 @@ const RoomScreen = ({ navigation, route }) => {
           <Text style={styles.buttonText}>{micOn ? "Mic On" : "Mic Off"}</Text>
         </Pressable>
         <Pressable
-          style={[styles.chatButton, !cameraOn ? styles.micOff : null]}
+          style={[styles.chatButton, !cameraOn ? styles.micOff : null, !webrtcService.isSupported() ? styles.disabledButton : null]}
           onPress={() =>
             setCameraOn((prev) => {
+              if (!webrtcService.isSupported()) {
+                setRtcError(webrtcService.getUnavailableMessage());
+                return prev;
+              }
               webrtcService.toggleVideo(!prev);
               return !prev;
             })

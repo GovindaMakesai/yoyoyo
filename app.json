@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Voice Rooms",
-    "slug": "voice-rooms",
+    "name": "Chateera",
+    "slug": "chateera",
     "version": "1.0.0",
     "icon": "./assets/lives.png",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.govinda.voicerooms",
+      "package": "com.govinda.chateera",
       "adaptiveIcon": {
         "foregroundImage": "./assets/lives.png",
         "backgroundColor": "#0B0D12"

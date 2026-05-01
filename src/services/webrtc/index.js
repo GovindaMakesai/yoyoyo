@@ -29,6 +29,23 @@ class WebRTCService {
   constructor() {
     this.localStream = null;
     this.peers = new Map();
+    this.remoteStreams = new Map();
+    this.listeners = new Set();
+  }
+
+  notifyState() {
+    this.listeners.forEach((listener) => {
+      try {
+        listener();
+      } catch (_error) {
+        // no-op
+      }
+    });
+  }
+
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   async initLocalStream({ audio = true, video = true } = {}) {
@@ -46,6 +63,7 @@ class WebRTCService {
       audio,
       video,
     });
+    this.notifyState();
     return this.localStream;
   }
 
@@ -56,6 +74,14 @@ class WebRTCService {
 
   getUnavailableMessage() {
     return WEBRTC_UNAVAILABLE_MESSAGE;
+  }
+
+  getLocalStreamURL() {
+    return this.localStream?.toURL?.() || null;
+  }
+
+  getRemoteStreamURL(userId) {
+    return this.remoteStreams.get(userId)?.toURL?.() || null;
   }
 
   toggleAudio(enabled) {
@@ -89,6 +115,20 @@ class WebRTCService {
     peer.onicecandidate = (event) => {
       if (event.candidate) {
         onIceCandidate(event.candidate);
+      }
+    };
+
+    peer.ontrack = (event) => {
+      const [stream] = event.streams || [];
+      if (!stream) return;
+      this.remoteStreams.set(userId, stream);
+      this.notifyState();
+    };
+
+    peer.onconnectionstatechange = () => {
+      if (["disconnected", "failed", "closed"].includes(peer.connectionState)) {
+        this.remoteStreams.delete(userId);
+        this.notifyState();
       }
     };
 
@@ -141,8 +181,10 @@ class WebRTCService {
   cleanup() {
     this.peers.forEach((peer) => peer.close());
     this.peers.clear();
+    this.remoteStreams.clear();
     this.localStream?.getTracks().forEach((track) => track.stop());
     this.localStream = null;
+    this.notifyState();
   }
 }
 

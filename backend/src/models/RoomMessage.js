@@ -7,7 +7,7 @@ const roomMessageSchema = new mongoose.Schema(
     senderName: { type: String, required: true, trim: true },
     text: { type: String, trim: true, default: "" },
     imageUrl: { type: String, default: "" },
-    type: { type: String, enum: ["text", "image", "system", "broadcast"], default: "text" },
+    type: { type: String, enum: ["text", "image", "system", "broadcast", "gift"], default: "text" },
   },
   { timestamps: true }
 );

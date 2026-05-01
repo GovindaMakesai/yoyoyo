@@ -52,8 +52,8 @@ const SplashScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <Image source={require("../../../../assets/lives.png")} style={styles.logo} />
-      <Text style={styles.title}>Voice Rooms</Text>
-      <Text style={styles.subtitle}>Connecting voices in real-time</Text>
+      <Text style={styles.title}>Chateera</Text>
+      <Text style={styles.subtitle}>Connect, chat, and go live together</Text>
 
       {isLoading ? (
         <View style={styles.loadingRow}>

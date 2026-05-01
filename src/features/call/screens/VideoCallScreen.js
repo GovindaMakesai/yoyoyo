@@ -17,15 +17,33 @@ const VideoCallScreen = ({ navigation, route }) => {
   const [micOn, setMicOn] = React.useState(true);
   const [cameraOn, setCameraOn] = React.useState(true);
   const [status, setStatus] = React.useState(isCaller ? "Ringing..." : "Connecting...");
+  const [localStreamURL, setLocalStreamURL] = React.useState(null);
+  const [remoteStreamURL, setRemoteStreamURL] = React.useState(null);
+  const rtcModule = React.useMemo(() => {
+    try {
+      // eslint-disable-next-line global-require
+      return require("react-native-webrtc");
+    } catch (_error) {
+      return null;
+    }
+  }, []);
+  const RTCView = rtcModule?.RTCView;
 
   React.useEffect(() => {
     let mounted = true;
+
+    const syncStreams = () => {
+      setLocalStreamURL(webrtcService.getLocalStreamURL());
+      setRemoteStreamURL(webrtcService.getRemoteStreamURL(peerUserId));
+    };
+    const unsubscribe = webrtcService.subscribe(syncStreams);
 
     const setup = async () => {
       if (!webrtcService.isSupported()) {
         throw new Error(webrtcService.getUnavailableMessage());
       }
       await webrtcService.initLocalStream({ audio: true, video: callType === "video" });
+      syncStreams();
       if (isCaller) {
         const offer = await webrtcService.createOffer(peerUserId, (candidate) => {
           socketService.sendSignal({ roomId: callRoomId, targetUserId: peerUserId, signal: candidate });
@@ -73,6 +91,7 @@ const VideoCallScreen = ({ navigation, route }) => {
 
     return () => {
       mounted = false;
+      unsubscribe();
       socketService.off("webrtc:signal", onSignal);
       socketService.off("call:ended", onCallEnded);
       webrtcService.cleanup();
@@ -97,7 +116,20 @@ const VideoCallScreen = ({ navigation, route }) => {
         </View>
       ) : (
         <View style={styles.preview}>
-          <Text style={styles.previewText}>{callType === "video" ? "Video stream active" : "Voice call connected"}</Text>
+          {callType === "video" && RTCView ? (
+            <>
+              {remoteStreamURL ? (
+                <RTCView streamURL={remoteStreamURL} style={styles.remoteVideo} objectFit="cover" />
+              ) : (
+                <View style={styles.waitingLayer}>
+                  <Text style={styles.previewText}>Waiting for remote video...</Text>
+                </View>
+              )}
+              {localStreamURL ? <RTCView streamURL={localStreamURL} style={styles.localVideo} objectFit="cover" /> : null}
+            </>
+          ) : (
+            <Text style={styles.previewText}>{callType === "video" ? "Video stream active" : "Voice call connected"}</Text>
+          )}
         </View>
       )}
       <Text style={styles.name}>{peerUserName}</Text>
@@ -148,6 +180,26 @@ const styles = StyleSheet.create({
     backgroundColor: appColors.card,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  remoteVideo: {
+    width: "100%",
+    height: "100%",
+  },
+  localVideo: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    width: 120,
+    height: 170,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  waitingLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
   },
   previewText: { color: appColors.textSecondary },
   previewSubText: { color: appColors.textSecondary, fontSize: 12, marginTop: 8, marginBottom: 12, textAlign: "center" },
@@ -171,7 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: appColors.danger,
     alignItems: "center",
   },
-  controlText: { color: appColors.textPrimary, fontWeight: "700" },
+  controlText: { color: "#FFFFFF", fontWeight: "700" },
 });
 
 export default VideoCallScreen;

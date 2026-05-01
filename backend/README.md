@@ -1,4 +1,4 @@
-# YoYo Backend API
+# Chateera Backend API
 
 Production-ready modular backend for a social voice chat app.
 

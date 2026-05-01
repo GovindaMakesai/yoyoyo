@@ -91,7 +91,7 @@ app.use("/payments", paymentsRouter);
 
 app.get("/", (_req, res) => {
   res.json({
-    message: "Voice social backend running",
+    message: "Chateera backend running",
     docs: "/api",
     socketDocs: "/api/socket-events",
     swagger: "/swagger",

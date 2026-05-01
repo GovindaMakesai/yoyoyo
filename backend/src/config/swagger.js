@@ -3,9 +3,9 @@ const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerDefinition = {
   openapi: "3.0.0",
   info: {
-    title: "YoYo Backend API",
+    title: "Chateera Backend API",
     version: "1.0.0",
-    description: "API docs for YoYo social chat backend",
+    description: "API docs for Chateera social chat backend",
   },
   servers: [{ url: "http://localhost:4000", description: "Local dev server" }],
   components: {

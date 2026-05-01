@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -24,6 +25,7 @@ const ProfileScreen = () => {
   const [discoverable, setDiscoverable] = React.useState(true);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [displayName, setDisplayName] = React.useState(user?.name || "Voice User");
+  const [avatarUrl, setAvatarUrl] = React.useState(user?.avatarUrl || "");
   const [bio, setBio] = React.useState(
     "Building communities through live voice rooms and real-time conversations."
   );
@@ -37,7 +39,8 @@ const ProfileScreen = () => {
 
   React.useEffect(() => {
     setDisplayName(user?.name || "Voice User");
-  }, [user?.name]);
+    setAvatarUrl(user?.avatarUrl || "");
+  }, [user?.avatarUrl, user?.name]);
 
   React.useEffect(() => {
     if (authError) {
@@ -52,17 +55,17 @@ const ProfileScreen = () => {
   }, [showToast, walletError]);
 
   const handleSaveProfile = async () => {
-    const success = await updateProfile({ name: displayName.trim() });
+    const success = await updateProfile({ name: displayName.trim(), avatarUrl: avatarUrl.trim() });
     if (success) {
       setIsEditOpen(false);
-      showToast("Profile updated");
+      showToast("Profile updated", "success");
     }
   };
 
   const handleShareProfile = async () => {
     try {
       await Share.share({
-        message: `Join me on YoYo Voice Rooms!\nUser: ${displayName || user?.name || "Voice User"}`,
+        message: `Join me on Chateera!\nUser: ${displayName || user?.name || "Voice User"}`,
       });
     } catch (_error) {
       showToast("Unable to open share dialog.", "error");
@@ -71,12 +74,12 @@ const ProfileScreen = () => {
 
   const handleAddCoins = async () => {
     const success = await addCoins(50, "Profile top-up");
-    if (success) showToast("Added 50 coins");
+    if (success) showToast("Added 50 coins", "success");
   };
 
   const handleSpendCoins = async () => {
     const success = await spendCoins(20, "Feature unlock");
-    if (success) showToast("Spent 20 coins");
+    if (success) showToast("Spent 20 coins", "success");
   };
 
   const handleClaimReward = async () => {
@@ -93,7 +96,11 @@ const ProfileScreen = () => {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentWrap}>
       <View style={styles.headerCard}>
-        <Text style={styles.avatar}>🧑‍🚀</Text>
+        {avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+        ) : (
+          <Text style={styles.avatar}>🧑‍🚀</Text>
+        )}
         <Text style={styles.name}>{displayName || user?.name || "Voice User"}</Text>
         <Text style={styles.handle}>
           @{(displayName || user?.name || "voice user").toLowerCase().replace(/\s+/g, "_")}
@@ -111,7 +118,7 @@ const ProfileScreen = () => {
 
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{Math.max(rooms.length * 3, 24)}</Text>
+          <Text style={styles.statNumber}>{rooms.length}</Text>
           <Text style={styles.statLabel}>Rooms Joined</Text>
         </View>
         <View style={styles.statItem}>
@@ -119,7 +126,7 @@ const ProfileScreen = () => {
           <Text style={styles.statLabel}>Coins</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>322</Text>
+          <Text style={styles.statNumber}>0</Text>
           <Text style={styles.statLabel}>Following</Text>
         </View>
       </View>
@@ -215,6 +222,13 @@ const ProfileScreen = () => {
               style={styles.input}
             />
             <TextInput
+              value={avatarUrl}
+              onChangeText={setAvatarUrl}
+              placeholder="Avatar image URL"
+              placeholderTextColor={appColors.textSecondary}
+              style={styles.input}
+            />
+            <TextInput
               value={bio}
               onChangeText={setBio}
               placeholder="Bio"
@@ -256,6 +270,13 @@ const styles = StyleSheet.create({
   },
   avatar: {
     fontSize: 64,
+  },
+  avatarImage: {
+    width: 82,
+    height: 82,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: appColors.border,
   },
   name: {
     marginTop: 8,

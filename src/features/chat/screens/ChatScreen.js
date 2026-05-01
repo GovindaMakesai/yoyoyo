@@ -11,14 +11,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { appColors } from "../../../navigation/theme";
+import { useToast } from "../../../components";
 import socketService from "../../../services/socket";
-import { useAuthStore, useChatStore, useRoomStore } from "../../../store";
+import { useAuthStore, useChatStore, useRoomStore, useWalletStore } from "../../../store";
 
 const ChatScreen = ({ route }) => {
   const [input, setInput] = useState("");
   const insets = useSafeAreaInsets();
   const roomId = route.params?.roomId;
   const { user } = useAuthStore();
+  const { coins, spendCoins, loadWallet } = useWalletStore();
+  const { showToast } = useToast();
   const { loadRoomMessages } = useRoomStore();
   const {
     messagesByRoom,
@@ -73,6 +76,18 @@ const ChatScreen = ({ route }) => {
 
   const messages = useMemo(() => messagesByRoom[roomId] || [], [messagesByRoom, roomId]);
   const typingUsers = useMemo(() => typingByRoom[roomId] || [], [typingByRoom, roomId]);
+  const giftOptions = useMemo(
+    () => [
+      { id: "rose", label: "🌹 Rose", cost: 10 },
+      { id: "crown", label: "👑 Crown", cost: 50 },
+      { id: "rocket", label: "🚀 Rocket", cost: 100 },
+    ],
+    []
+  );
+
+  React.useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
 
   const handleSend = async () => {
     if (!input.trim()) {
@@ -80,7 +95,8 @@ const ChatScreen = ({ route }) => {
     }
     await sendMessage({
       roomId,
-      sender: user?.name || "You",
+      senderId: user?.id || "unknown_user",
+      senderName: user?.name || "You",
       text: input,
     });
     socketService.emitTyping({
@@ -89,6 +105,22 @@ const ChatScreen = ({ route }) => {
       isTyping: false,
     });
     setInput("");
+  };
+
+  const handleSendGift = async (gift) => {
+    const success = await spendCoins(gift.cost, `Gift sent: ${gift.label}`);
+    if (!success) {
+      showToast("Not enough coins.", "error");
+      return;
+    }
+    await sendMessage({
+      roomId,
+      senderId: user?.id || "unknown_user",
+      senderName: user?.name || "You",
+      text: `sent ${gift.label} (${gift.cost} coins)`,
+      type: "gift",
+    });
+    showToast(`Gift sent: ${gift.label}`, "success");
   };
 
   return (
@@ -115,6 +147,7 @@ const ChatScreen = ({ route }) => {
               ]}
             >
               {!isGrouped ? <Text style={styles.sender}>{senderName}</Text> : null}
+              {item.type === "gift" ? <Text style={styles.giftTag}>Gift</Text> : null}
               {item.imageUrl ? <Text style={styles.messageText}>📷 {item.imageUrl}</Text> : null}
               {item.text ? <Text style={styles.messageText}>{item.text}</Text> : null}
               <Text style={styles.timestamp}>
@@ -137,6 +170,14 @@ const ChatScreen = ({ route }) => {
       ) : null}
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <View style={styles.giftRow}>
+        <Text style={styles.giftCoins}>🪙 {coins}</Text>
+        {giftOptions.map((gift) => (
+          <Pressable key={gift.id} style={styles.giftButton} onPress={() => handleSendGift(gift)} disabled={loading}>
+            <Text style={styles.giftButtonText}>{gift.label}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <View style={[styles.inputRow, { marginBottom: Math.max(insets.bottom, 10) + 8 }]}>
         <TextInput
@@ -227,6 +268,42 @@ const styles = StyleSheet.create({
     color: appColors.danger,
     fontSize: 12,
     marginBottom: 8,
+  },
+  giftRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  giftCoins: {
+    color: appColors.textPrimary,
+    fontSize: 12,
+    fontWeight: "700",
+    marginRight: 8,
+  },
+  giftButton: {
+    borderWidth: 1,
+    borderColor: appColors.border,
+    backgroundColor: appColors.card,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 6,
+  },
+  giftButtonText: {
+    color: appColors.textPrimary,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  giftTag: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FEF3C7",
+    color: "#92400E",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 4,
   },
   inputRow: {
     flexDirection: "row",
