@@ -21,7 +21,7 @@ const HomeScreen = ({ navigation }) => {
   const [lockPassword, setLockPassword] = React.useState("");
   const { showToast } = useToast();
   const { user, logout, loading: authLoading } = useAuthStore();
-  const { rooms, createRoom, selectRoom, loadRooms, loading: roomLoading, error } = useRoomStore();
+  const { rooms, createRoom, selectRoom, joinRoom, loadRooms, loading: roomLoading, error } = useRoomStore();
   const { coins, loadWallet, claimDailyReward, loading: walletLoading } = useWalletStore();
 
   React.useEffect(() => {
@@ -31,9 +31,15 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [user, loadRooms, loadWallet]);
 
-  const handleOpenRoom = (room) => {
-    selectRoom(room);
-    navigation.navigate(ROUTES.Room, { roomId: room._id || room.id });
+  const handleOpenRoom = async (room) => {
+    const roomId = room._id || room.id;
+    const joined = await joinRoom({ roomId });
+    if (!joined) {
+      showToast("Unable to join room. It may be locked/full.", "error");
+      return;
+    }
+    selectRoom(joined);
+    navigation.navigate(ROUTES.Room, { roomId });
   };
 
   const handleCreateRoom = async () => {

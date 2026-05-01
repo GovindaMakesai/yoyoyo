@@ -12,10 +12,11 @@ const VideoCallScreen = ({ navigation, route }) => {
   const peerUserId = route.params?.peerUserId;
   const peerUserName = route.params?.peerUserName || "Participant";
   const isCaller = Boolean(route.params?.isCaller);
+  const callType = route.params?.callType || "voice";
   const callRoomId = getCallRoomId(user?.id, peerUserId);
   const [micOn, setMicOn] = React.useState(true);
   const [cameraOn, setCameraOn] = React.useState(true);
-  const [status, setStatus] = React.useState(isCaller ? "Calling..." : "Connecting...");
+  const [status, setStatus] = React.useState(isCaller ? "Ringing..." : "Connecting...");
 
   React.useEffect(() => {
     let mounted = true;
@@ -24,16 +25,16 @@ const VideoCallScreen = ({ navigation, route }) => {
       if (!webrtcService.isSupported()) {
         throw new Error(webrtcService.getUnavailableMessage());
       }
-      await webrtcService.initLocalStream({ audio: true, video: true });
+      await webrtcService.initLocalStream({ audio: true, video: callType === "video" });
       if (isCaller) {
         const offer = await webrtcService.createOffer(peerUserId, (candidate) => {
           socketService.sendSignal({ roomId: callRoomId, targetUserId: peerUserId, signal: candidate });
         });
         socketService.sendSignal({ roomId: callRoomId, targetUserId: peerUserId, signal: offer });
+        if (mounted) setStatus("Ringing...");
+        return;
       }
-      if (mounted) {
-        setStatus("In call");
-      }
+      if (mounted) setStatus("Connecting...");
     };
 
     const onSignal = async ({ fromUserId, signal }) => {
@@ -43,11 +44,13 @@ const VideoCallScreen = ({ navigation, route }) => {
           socketService.sendSignal({ roomId: callRoomId, targetUserId: peerUserId, signal: candidate });
         });
         socketService.sendSignal({ roomId: callRoomId, targetUserId: peerUserId, signal: answer });
+        if (mounted) setStatus("Connected");
         return;
       }
 
       if (signal.type === "answer") {
         await webrtcService.handleRemoteAnswer(peerUserId, signal);
+        if (mounted) setStatus("Connected");
         return;
       }
 
@@ -74,7 +77,7 @@ const VideoCallScreen = ({ navigation, route }) => {
       socketService.off("call:ended", onCallEnded);
       webrtcService.cleanup();
     };
-  }, [callRoomId, isCaller, navigation, peerUserId]);
+  }, [callRoomId, callType, isCaller, navigation, peerUserId]);
 
   const endCall = () => {
     socketService.endCall({ targetUserId: peerUserId });
@@ -94,11 +97,11 @@ const VideoCallScreen = ({ navigation, route }) => {
         </View>
       ) : (
         <View style={styles.preview}>
-          <Text style={styles.previewText}>Video stream active</Text>
+          <Text style={styles.previewText}>{callType === "video" ? "Video stream active" : "Voice call connected"}</Text>
         </View>
       )}
       <Text style={styles.name}>{peerUserName}</Text>
-      <Text style={styles.status}>{status}</Text>
+      <Text style={styles.status}>{callType.toUpperCase()} • {status}</Text>
 
       {webrtcService.isSupported() ? (
         <View style={styles.footer}>
@@ -113,17 +116,19 @@ const VideoCallScreen = ({ navigation, route }) => {
           >
             <Text style={styles.controlText}>{micOn ? "Mute" : "Unmute"}</Text>
           </Pressable>
-          <Pressable
-            style={[styles.controlButton, !cameraOn && styles.controlOff]}
-            onPress={() =>
-              setCameraOn((prev) => {
-                webrtcService.toggleVideo(!prev);
-                return !prev;
-              })
-            }
-          >
-            <Text style={styles.controlText}>{cameraOn ? "Camera Off" : "Camera On"}</Text>
-          </Pressable>
+          {callType === "video" ? (
+            <Pressable
+              style={[styles.controlButton, !cameraOn && styles.controlOff]}
+              onPress={() =>
+                setCameraOn((prev) => {
+                  webrtcService.toggleVideo(!prev);
+                  return !prev;
+                })
+              }
+            >
+              <Text style={styles.controlText}>{cameraOn ? "Camera Off" : "Camera On"}</Text>
+            </Pressable>
+          ) : null}
           <Pressable style={styles.endButton} onPress={endCall}>
             <Text style={styles.controlText}>End</Text>
           </Pressable>

@@ -28,6 +28,15 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  setRoomMessages: (roomId, messages = []) => {
+    set((state) => ({
+      messagesByRoom: {
+        ...state.messagesByRoom,
+        [roomId]: messages,
+      },
+    }));
+  },
+
   sendMessage: async ({ roomId, sender, text }) => {
     try {
       if (!text.trim()) {

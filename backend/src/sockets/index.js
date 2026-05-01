@@ -186,7 +186,7 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    socket.on("call:invite", ({ targetUserId, roomId }) => {
+    socket.on("call:invite", ({ targetUserId, roomId, callType = "voice" }) => {
       if (!targetUserId) return;
       const targetSocketId = connectedUsers.get(targetUserId);
       if (!targetSocketId) return;
@@ -194,16 +194,18 @@ const registerSocketHandlers = (io) => {
         fromUserId: socket.data.userId,
         fromUserName: socket.data.userName,
         roomId,
+        callType,
       });
     });
 
-    socket.on("call:accept", ({ targetUserId, roomId }) => {
+    socket.on("call:accept", ({ targetUserId, roomId, callType = "voice" }) => {
       const targetSocketId = connectedUsers.get(targetUserId);
       if (!targetSocketId) return;
       io.to(targetSocketId).emit("call:accepted", {
         fromUserId: socket.data.userId,
         fromUserName: socket.data.userName,
         roomId,
+        callType,
       });
     });
 

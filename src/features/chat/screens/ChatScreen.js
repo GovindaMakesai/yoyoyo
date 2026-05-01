@@ -12,13 +12,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { appColors } from "../../../navigation/theme";
 import socketService from "../../../services/socket";
-import { useAuthStore, useChatStore } from "../../../store";
+import { useAuthStore, useChatStore, useRoomStore } from "../../../store";
 
 const ChatScreen = ({ route }) => {
   const [input, setInput] = useState("");
   const insets = useSafeAreaInsets();
   const roomId = route.params?.roomId;
   const { user } = useAuthStore();
+  const { loadRoomMessages } = useRoomStore();
   const {
     messagesByRoom,
     typingByRoom,
@@ -28,6 +29,7 @@ const ChatScreen = ({ route }) => {
     sendMessage,
     receiveMessage,
     receiveSystemMessage,
+    setRoomMessages,
     setTyping,
   } = useChatStore();
 
@@ -37,6 +39,11 @@ const ChatScreen = ({ route }) => {
     }
 
     hydrateRoomMessages(roomId);
+    loadRoomMessages(roomId).then((history) => {
+      if (history?.length) {
+        setRoomMessages(roomId, history);
+      }
+    });
 
     const onMessage = (message) => {
       if (message.roomId === roomId) {
@@ -62,12 +69,15 @@ const ChatScreen = ({ route }) => {
       socketService.off("systemMessage", onSystemMessage);
       socketService.off("typingUpdated", onTypingUpdated);
     };
-  }, [hydrateRoomMessages, receiveMessage, receiveSystemMessage, roomId, setTyping]);
+  }, [hydrateRoomMessages, loadRoomMessages, receiveMessage, receiveSystemMessage, roomId, setRoomMessages, setTyping]);
 
   const messages = useMemo(() => messagesByRoom[roomId] || [], [messagesByRoom, roomId]);
   const typingUsers = useMemo(() => typingByRoom[roomId] || [], [typingByRoom, roomId]);
 
   const handleSend = async () => {
+    if (!input.trim()) {
+      return;
+    }
     await sendMessage({
       roomId,
       sender: user?.name || "You",
@@ -95,8 +105,15 @@ const ChatScreen = ({ route }) => {
           const prevItem = messages[index - 1];
           const senderName = item.sender || item.senderName || "User";
           const isGrouped = (prevItem?.sender || prevItem?.senderName) === senderName;
+          const isMine = String(item.senderId || item.sender) === String(user?.id || user?.name);
           return (
-            <View style={[styles.messageItem, isGrouped ? styles.messageItemGrouped : null]}>
+            <View
+              style={[
+                styles.messageItem,
+                isGrouped ? styles.messageItemGrouped : null,
+                isMine ? styles.messageMine : styles.messageOther,
+              ]}
+            >
               {!isGrouped ? <Text style={styles.sender}>{senderName}</Text> : null}
               {item.imageUrl ? <Text style={styles.messageText}>📷 {item.imageUrl}</Text> : null}
               {item.text ? <Text style={styles.messageText}>{item.text}</Text> : null}
@@ -136,7 +153,11 @@ const ChatScreen = ({ route }) => {
           placeholderTextColor={appColors.textSecondary}
           style={styles.input}
         />
-        <Pressable style={styles.sendButton} onPress={handleSend} disabled={loading}>
+        <Pressable
+          style={[styles.sendButton, !input.trim() ? styles.sendDisabled : null]}
+          onPress={handleSend}
+          disabled={loading || !input.trim()}
+        >
           <Text style={styles.sendText}>{loading ? "..." : "Send"}</Text>
         </Pressable>
       </View>
@@ -162,9 +183,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     marginBottom: 8,
+    maxWidth: "85%",
   },
   messageItemGrouped: {
     marginTop: -3,
+  },
+  messageMine: {
+    alignSelf: "flex-end",
+    backgroundColor: "#CCFBF1",
+  },
+  messageOther: {
+    alignSelf: "flex-start",
   },
   sender: {
     color: appColors.primary,
@@ -221,8 +250,11 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   sendText: {
-    color: appColors.textPrimary,
+    color: "#FFFFFF",
     fontWeight: "700",
+  },
+  sendDisabled: {
+    opacity: 0.55,
   },
 });
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { ROUTES } from "../../../navigation/routes";
 import { appColors } from "../../../navigation/theme";
+import { useToast } from "../../../components";
 import socketService from "../../../services/socket";
 import webrtcService from "../../../services/webrtc";
 import { useAuthStore, useRoomStore } from "../../../store";
@@ -11,6 +12,8 @@ const RoomScreen = ({ navigation, route }) => {
   const [cameraOn, setCameraOn] = useState(true);
   const [incomingCall, setIncomingCall] = useState(null);
   const [rtcError, setRtcError] = useState("");
+  const [callType, setCallType] = useState("voice");
+  const { showToast } = useToast();
   const { user } = useAuthStore();
   const { rooms, activeRoom, clearActiveRoom, roomUsersById, updateRoomUsers, joinRoom, leaveRoom } = useRoomStore();
   const roomId = route.params?.roomId;
@@ -27,7 +30,12 @@ const RoomScreen = ({ navigation, route }) => {
       return;
     }
 
-    joinRoom({ roomId }).catch(() => null);
+    joinRoom({ roomId }).then((joinedRoom) => {
+      if (!joinedRoom) {
+        showToast("Failed to join room.", "error");
+        navigation.goBack();
+      }
+    });
 
     if (webrtcService.isSupported()) {
       webrtcService.initLocalStream({ audio: true, video: true }).catch(() => {
@@ -42,6 +50,9 @@ const RoomScreen = ({ navigation, route }) => {
     };
     const onSignal = async ({ fromUserId, signal }) => {
       if (!fromUserId || !signal) {
+        return;
+      }
+      if (!webrtcService.isSupported()) {
         return;
       }
 
@@ -65,7 +76,7 @@ const RoomScreen = ({ navigation, route }) => {
     const onIncomingCall = (payload) => {
       setIncomingCall(payload);
     };
-    const onCallAccepted = ({ fromUserId, fromUserName }) => {
+    const onCallAccepted = ({ fromUserId, fromUserName, callType: acceptedCallType }) => {
       if (!webrtcService.isSupported()) {
         setRtcError(webrtcService.getUnavailableMessage());
         return;
@@ -73,6 +84,7 @@ const RoomScreen = ({ navigation, route }) => {
       navigation.navigate(ROUTES.VideoCall, {
         peerUserId: fromUserId,
         peerUserName: fromUserName,
+        callType: acceptedCallType || callType,
         isCaller: true,
       });
     };
@@ -96,28 +108,7 @@ const RoomScreen = ({ navigation, route }) => {
       leaveRoom({ roomId }).catch(() => null);
       webrtcService.cleanup();
     };
-  }, [joinRoom, leaveRoom, navigation, roomId, updateRoomUsers]);
-
-  React.useEffect(() => {
-    if (!roomId || !user?.id) {
-      return;
-    }
-
-    if (!webrtcService.isSupported()) return;
-
-    users
-      .filter((member) => member.id !== user.id)
-      .forEach(async (member) => {
-        try {
-          const offer = await webrtcService.createOffer(member.id, (candidate) => {
-            socketService.sendSignal({ roomId, targetUserId: member.id, signal: candidate });
-          });
-          socketService.sendSignal({ roomId, targetUserId: member.id, signal: offer });
-        } catch (_error) {
-          setRtcError("Unable to start call in Expo Go. Use development build for WebRTC.");
-        }
-      });
-  }, [roomId, user?.id, users]);
+  }, [joinRoom, leaveRoom, navigation, roomId, showToast, updateRoomUsers]);
 
   const handleLeave = () => {
     if (roomId) {
@@ -134,12 +125,13 @@ const RoomScreen = ({ navigation, route }) => {
     navigation.navigate(ROUTES.Chat, { roomId });
   };
 
-  const handleStartCall = (member) => {
+  const handleStartCall = (member, nextCallType = "voice") => {
     if (!webrtcService.isSupported()) {
       setRtcError(webrtcService.getUnavailableMessage());
       return;
     }
-    socketService.inviteCall({ targetUserId: member.id, roomId });
+    setCallType(nextCallType);
+    socketService.inviteCall({ targetUserId: member.id, roomId, callType: nextCallType });
   };
 
   const handleAcceptIncoming = () => {
@@ -152,10 +144,15 @@ const RoomScreen = ({ navigation, route }) => {
       return;
     }
 
-    socketService.acceptCall({ targetUserId: incomingCall.fromUserId, roomId });
+    socketService.acceptCall({
+      targetUserId: incomingCall.fromUserId,
+      roomId,
+      callType: incomingCall.callType || "voice",
+    });
     navigation.navigate(ROUTES.VideoCall, {
       peerUserId: incomingCall.fromUserId,
       peerUserName: incomingCall.fromUserName,
+      callType: incomingCall.callType || "voice",
       isCaller: false,
     });
     setIncomingCall(null);
@@ -172,6 +169,20 @@ const RoomScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <Text style={styles.roomTitle}>{room?.title || "Room"}</Text>
       <Text style={styles.sectionLabel}>Listeners & Speakers</Text>
+      <View style={styles.modeRow}>
+        <Pressable
+          style={[styles.modeButton, callType === "voice" ? styles.modeButtonActive : null]}
+          onPress={() => setCallType("voice")}
+        >
+          <Text style={[styles.modeText, callType === "voice" ? styles.modeTextActive : null]}>Voice Call</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.modeButton, callType === "video" ? styles.modeButtonActive : null]}
+          onPress={() => setCallType("video")}
+        >
+          <Text style={[styles.modeText, callType === "video" ? styles.modeTextActive : null]}>Video Call</Text>
+        </Pressable>
+      </View>
       {rtcError ? <Text style={styles.rtcError}>{rtcError}</Text> : null}
 
       <FlatList
@@ -186,7 +197,7 @@ const RoomScreen = ({ navigation, route }) => {
                 onPress={() => handleStartCall(item)}
                 disabled={!webrtcService.isSupported()}
               >
-                <Text style={styles.buttonText}>Call</Text>
+                <Text style={styles.buttonText}>{webrtcService.isSupported() ? `Call (${callType})` : "Dev build needed"}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -261,6 +272,32 @@ const styles = StyleSheet.create({
     color: appColors.textSecondary,
     fontSize: 14,
   },
+  modeRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  modeButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: appColors.border,
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: "center",
+    backgroundColor: appColors.card,
+    marginRight: 8,
+  },
+  modeButtonActive: {
+    backgroundColor: appColors.primary,
+    borderColor: appColors.primary,
+  },
+  modeText: {
+    color: appColors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  modeTextActive: {
+    color: "#FFFFFF",
+  },
   listContent: {
     paddingBottom: 12,
   },
@@ -308,7 +345,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   buttonText: {
-    color: appColors.textPrimary,
+    color: "#FFFFFF",
     fontWeight: "700",
   },
   callButton: {
