@@ -30,6 +30,16 @@ export const loginWithEmail = async ({ email, password }) => {
   return response.data;
 };
 
+export const requestOtpApi = async ({ channel, identifier }) => {
+  const response = await api.post("/auth/otp/request", { channel, identifier });
+  return response.data;
+};
+
+export const verifyOtpApi = async ({ channel, identifier, code, name }) => {
+  const response = await api.post("/auth/otp/verify", { channel, identifier, code, name });
+  return response.data;
+};
+
 export const getCurrentUser = async () => {
   const response = await api.get("/auth/me");
   return response.data?.user;

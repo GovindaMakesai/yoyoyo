@@ -9,6 +9,12 @@ const healthRouter = require("./routes/health");
 const authRouter = require("./routes/auth");
 const roomRouter = require("./routes/rooms");
 const walletRouter = require("./routes/wallet");
+const profileRouter = require("./routes/profile");
+const vipRouter = require("./routes/vip");
+const gameRouter = require("./routes/game");
+const adminRouter = require("./routes/admin");
+const paymentsRouter = require("./routes/payments");
+const { apiLimiter } = require("./middleware/rateLimit");
 const { registerSocketHandlers } = require("./sockets");
 
 const app = express();
@@ -23,10 +29,16 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
+app.use(apiLimiter);
 app.use("/health", healthRouter);
 app.use("/auth", authRouter);
 app.use("/rooms", roomRouter);
 app.use("/wallet", walletRouter);
+app.use("/profile", profileRouter);
+app.use("/vip", vipRouter);
+app.use("/games", gameRouter);
+app.use("/admin", adminRouter);
+app.use("/payments", paymentsRouter);
 
 app.get("/", (_req, res) => {
   res.json({ message: "Voice social backend running" });

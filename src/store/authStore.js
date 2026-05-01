@@ -5,7 +5,9 @@ import {
   getPersistedSession,
   loginWithEmail,
   persistSession,
+  requestOtpApi,
   registerWithEmail,
+  verifyOtpApi,
 } from "../services/auth";
 import { setAuthToken } from "../services/api";
 import socketService from "../services/socket";
@@ -72,6 +74,35 @@ export const useAuthStore = create((set) => ({
       return true;
     } catch (error) {
       set({ error: error?.response?.data?.message || "Login failed." });
+      return false;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  requestOtp: async ({ channel, identifier }) => {
+    try {
+      set({ loading: true, error: "" });
+      return await requestOtpApi({ channel, identifier });
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "OTP request failed." });
+      return null;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  verifyOtp: async ({ channel, identifier, code, name }) => {
+    try {
+      set({ loading: true, error: "" });
+      const { token, user } = await verifyOtpApi({ channel, identifier, code, name });
+      setAuthToken(token);
+      socketService.connect({ token, user });
+      await persistSession({ token, user });
+      set({ user, token });
+      return true;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "OTP verification failed." });
       return false;
     } finally {
       set({ loading: false });

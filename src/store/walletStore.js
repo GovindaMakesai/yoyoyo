@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { addCoinsApi, getBalanceApi, getTransactionsApi, spendCoinsApi } from "../services/wallet";
+import { addCoinsApi, claimDailyRewardApi, getBalanceApi, getTransactionsApi, spendCoinsApi } from "../services/wallet";
 
 export const useWalletStore = create((set) => ({
   coins: 0,
@@ -42,6 +42,20 @@ export const useWalletStore = create((set) => ({
     } catch (error) {
       set({ error: error?.response?.data?.message || "Failed to spend coins." });
       return false;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  claimDailyReward: async () => {
+    try {
+      set({ loading: true, error: "" });
+      const result = await claimDailyRewardApi();
+      set((state) => ({ coins: result.coins, transactions: [result.transaction, ...state.transactions] }));
+      return result;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Failed to claim daily reward." });
+      return null;
     } finally {
       set({ loading: false });
     }

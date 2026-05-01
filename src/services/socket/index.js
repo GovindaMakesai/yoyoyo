@@ -73,6 +73,18 @@ class SocketService {
     this.socket?.emit("sendMessage", payload);
   }
 
+  sendBroadcast(payload) {
+    this.socket?.emit("room:broadcast", payload);
+  }
+
+  toggleRoomLock(payload) {
+    this.socket?.emit("room:toggleLock", payload);
+  }
+
+  updateRoomSettings(payload) {
+    this.socket?.emit("room:updateSettings", payload);
+  }
+
   emitTyping(payload) {
     this.socket?.emit("typing", payload);
   }

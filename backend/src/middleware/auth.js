@@ -11,10 +11,16 @@ const authMiddleware = async (req, res, next) => {
     }
 
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(payload.sub).select("_id name email coins");
+    const user = await User.findById(payload.sub).select(
+      "_id name email phone avatarUrl coins role vip noble dailyReward isBanned bannedUntil"
+    );
 
     if (!user) {
       return res.status(401).json({ message: "Invalid token." });
+    }
+
+    if (user.isBanned && (!user.bannedUntil || user.bannedUntil > new Date())) {
+      return res.status(403).json({ message: "Your account is banned." });
     }
 
     req.user = user;
@@ -24,4 +30,11 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = { authMiddleware };
+const requireRole = (...roles) => (req, res, next) => {
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ message: "Insufficient permission." });
+  }
+  return next();
+};
+
+module.exports = { authMiddleware, requireRole };

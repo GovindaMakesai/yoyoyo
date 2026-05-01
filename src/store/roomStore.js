@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createRoomApi, fetchRooms } from "../services/rooms";
+import { createRoomApi, fetchRoomMessagesApi, fetchRooms, joinRoomApi, leaveRoomApi } from "../services/rooms";
 
 export const useRoomStore = create((set) => ({
   rooms: [],
@@ -54,5 +54,41 @@ export const useRoomStore = create((set) => ({
           : room
       ),
     }));
+  },
+
+  joinRoom: async ({ roomId, password }) => {
+    try {
+      set({ loading: true, error: "" });
+      const room = await joinRoomApi({ roomId, password });
+      set({ activeRoom: room });
+      return room;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Failed to join room." });
+      return null;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  leaveRoom: async ({ roomId }) => {
+    try {
+      set({ loading: true, error: "" });
+      await leaveRoomApi({ roomId });
+      set({ activeRoom: null });
+      return true;
+    } catch (error) {
+      set({ error: error?.response?.data?.message || "Failed to leave room." });
+      return false;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  loadRoomMessages: async (roomId) => {
+    try {
+      return await fetchRoomMessagesApi({ roomId });
+    } catch (_error) {
+      return [];
+    }
   },
 }));
